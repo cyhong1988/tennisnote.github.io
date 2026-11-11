@@ -7,8 +7,8 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     body { background-color: #121417; color: #e5e7eb; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-    .gain-text { color: #f87171; } /* 紅漲 */
-    .loss-text { color: #4ade80; } /* 綠跌 */
+    .gain-text { color: #f87171; }
+    .loss-text { color: #4ade80; }
     .neutral-text { color: #9ca3af; }
     .card-bg { background-color: #1e2229; }
     .cell-gain { background-color: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.25); }
@@ -28,16 +28,16 @@
         <button onclick="changeMonth(1)" class="p-2 rounded bg-gray-800 hover:bg-gray-700 text-gray-300">›</button>
       </div>
       <div class="flex items-center space-x-2">
-        <button id="fetchBtn" onclick="fetchLatestPrices()" class="px-3 py-1.5 text-xs md:text-sm bg-blue-600 hover:bg-blue-500 rounded text-white font-medium transition flex items-center">
-          <span id="fetchBtnText">抓取最新收盤</span>
+        <button onclick="syncDataJson()" class="px-3 py-1.5 text-xs md:text-sm bg-blue-600 hover:bg-blue-500 rounded text-white font-medium transition">
+          重新整理資料
         </button>
-        <button onclick="openBackupModal()" class="p-2 rounded bg-gray-800 hover:bg-gray-700 text-gray-300" title="資料備份與匯入">
+        <button onclick="openBackupModal()" class="p-2 rounded bg-gray-800 hover:bg-gray-700 text-gray-300" title="備份/匯入">
           💾
         </button>
       </div>
     </header>
 
-    <!-- 頂部月總計展示欄 -->
+    <!-- 當月總計 -->
     <div class="grid grid-cols-2 gap-4 mb-5 p-4 rounded-xl bg-gray-900 border border-gray-800">
       <div>
         <div class="text-xs text-gray-400">當月累積損益 (元)</div>
@@ -49,7 +49,7 @@
       </div>
     </div>
 
-    <!-- 月曆熱力表格 -->
+    <!-- 月曆 -->
     <div class="rounded-xl overflow-hidden border border-gray-800 bg-gray-900/60 shadow-xl p-2 md:p-4">
       <div class="grid grid-cols-6 gap-1 md:gap-2 text-center text-xs md:text-sm text-gray-400 font-semibold mb-2">
         <div>一</div>
@@ -62,7 +62,7 @@
       <div id="calendarGrid" class="grid grid-cols-6 gap-1 md:gap-2"></div>
     </div>
 
-    <!-- 持股部位說明卡 -->
+    <!-- 持股部位 -->
     <div class="mt-6 p-4 rounded-xl card-bg border border-gray-800 text-xs md:text-sm text-gray-300">
       <div class="font-bold text-gray-200 mb-2 flex justify-between">
         <span>持股追蹤部位</span>
@@ -72,54 +72,53 @@
         <div class="bg-gray-900/50 p-2.5 rounded border border-gray-800">
           <div class="font-bold text-white">群益臺灣加權正2 (00685L)</div>
           <div class="text-gray-400 mt-1">股數：624,000 股</div>
-          <div class="text-gray-400">均價：10.22 元 (成本 6,377,280 元)</div>
+          <div class="text-gray-400">均價：10.22 元</div>
         </div>
         <div class="bg-gray-900/50 p-2.5 rounded border border-gray-800">
           <div class="font-bold text-white">元大台灣50 (0050)</div>
           <div class="text-gray-400 mt-1">股數：11,000 股</div>
-          <div class="text-gray-400">均價：75.90 元 (成本 834,900 元)</div>
+          <div class="text-gray-400">均價：75.90 元</div>
         </div>
       </div>
     </div>
   </div>
 
   <div class="mt-6 text-center text-xs text-gray-500">
-    提示：點擊任何一天格子即可手動校正或輸入當日收盤價。
+    提示：點擊任何日期方格可直接手動補正收盤價。
   </div>
 
-  <!-- 單日收盤價彈窗 -->
+  <!-- 單日彈窗 -->
   <div id="dayModal" class="fixed inset-0 bg-black/70 hidden flex items-center justify-center p-4 z-50">
     <div class="bg-gray-900 border border-gray-700 rounded-xl max-w-sm w-full p-5 shadow-2xl">
       <h3 id="modalDateTitle" class="text-lg font-bold mb-3 text-white">收盤價校正</h3>
       <div class="space-y-3">
         <div>
           <label class="block text-xs text-gray-400 mb-1">00685L 收盤價 (元)</label>
-          <input type="number" step="0.01" id="input00685L" placeholder="例: 10.35" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+          <input type="number" step="0.01" id="input00685L" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white">
         </div>
         <div>
           <label class="block text-xs text-gray-400 mb-1">0050 收盤價 (元)</label>
-          <input type="number" step="0.05" id="input0050" placeholder="例: 105.00" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+          <input type="number" step="0.05" id="input0050" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white">
         </div>
       </div>
       <div class="flex justify-between items-center mt-5">
         <button onclick="clearDayPrice()" class="text-xs text-red-400 hover:underline">清除此日</button>
         <div class="flex space-x-2">
-          <button onclick="closeDayModal()" class="px-3 py-1.5 text-sm bg-gray-800 hover:bg-gray-700 rounded text-gray-300">取消</button>
-          <button onclick="saveDayPrice()" class="px-4 py-1.5 text-sm bg-blue-600 hover:bg-blue-500 rounded text-white font-medium">確認儲存</button>
+          <button onclick="closeDayModal()" class="px-3 py-1.5 text-sm bg-gray-800 rounded text-gray-300">取消</button>
+          <button onclick="saveDayPrice()" class="px-4 py-1.5 text-sm bg-blue-600 rounded text-white font-medium">儲存</button>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- 資料匯出／匯入彈窗 -->
+  <!-- 備份彈窗 -->
   <div id="backupModal" class="fixed inset-0 bg-black/70 hidden flex items-center justify-center p-4 z-50">
     <div class="bg-gray-900 border border-gray-700 rounded-xl max-w-md w-full p-5 shadow-2xl">
-      <h3 class="text-lg font-bold mb-2 text-white">收盤價資料備份與匯入</h3>
-      <p class="text-xs text-gray-400 mb-3">您可以複製以下 JSON 備份歷史收盤價，或將外部整理的收盤價貼入並點擊匯入。</p>
-      <textarea id="jsonBackupArea" rows="8" class="w-full bg-gray-800 border border-gray-700 rounded p-2 text-xs text-gray-200 font-mono focus:outline-none"></textarea>
+      <h3 class="text-lg font-bold mb-2 text-white">資料備份與匯入</h3>
+      <textarea id="jsonBackupArea" rows="8" class="w-full bg-gray-800 border border-gray-700 rounded p-2 text-xs text-gray-200 font-mono"></textarea>
       <div class="flex justify-between items-center mt-4">
-        <button onclick="closeBackupModal()" class="px-3 py-1.5 text-sm bg-gray-800 hover:bg-gray-700 rounded text-gray-300">關閉</button>
-        <button onclick="importJsonData()" class="px-4 py-1.5 text-sm bg-blue-600 hover:bg-blue-500 rounded text-white font-medium">匯入資料</button>
+        <button onclick="closeBackupModal()" class="px-3 py-1.5 text-sm bg-gray-800 rounded text-gray-300">關閉</button>
+        <button onclick="importJsonData()" class="px-4 py-1.5 text-sm bg-blue-600 rounded text-white font-medium">匯入</button>
       </div>
     </div>
   </div>
@@ -131,15 +130,24 @@
     };
     const TOTAL_COST = 7212180;
 
-    // 從 localStorage 讀取收盤價資料庫
     let priceHistory = JSON.parse(localStorage.getItem("portfolio_price_history")) || {};
-
     let activeYear = 2026;
     let activeMonth = 11;
     let activeSelectedDate = null;
 
-    function saveHistory() {
-      localStorage.setItem("portfolio_price_history", JSON.stringify(priceHistory));
+    // 自動加載同一目錄下的 data.json
+    async function syncDataJson() {
+      try {
+        const res = await fetch(`./data.json?t=${Date.now()}`);
+        if (res.ok) {
+          const remoteData = await res.json();
+          priceHistory = { ...priceHistory, ...remoteData };
+          localStorage.setItem("portfolio_price_history", JSON.stringify(priceHistory));
+          renderCalendar();
+        }
+      } catch (e) {
+        console.log("尚未產生 data.json 或讀取失敗，使用本機儲存資料");
+      }
     }
 
     function formatNumber(num) {
@@ -154,22 +162,17 @@
       return (PORTFOLIO["00685L"].shares * prices["00685L"]) + (PORTFOLIO["0050"].shares * prices["0050"]);
     }
 
-    function getSortedRecordedDates() {
-      return Object.keys(priceHistory).sort();
-    }
-
     function getDailyStats(dateStr) {
       const todayPrice = priceHistory[dateStr];
       if (!todayPrice || todayPrice["00685L"] === undefined || todayPrice["0050"] === undefined) {
         return { pnl: 0, ret: 0, hasData: false };
       }
 
-      const allDates = getSortedRecordedDates();
+      const allDates = Object.keys(priceHistory).sort();
       const idx = allDates.indexOf(dateStr);
       const currVal = calculateMarketValue(todayPrice);
 
       if (idx <= 0) {
-        // 第一筆無前日比較基準時，以總成本為基底
         const pnl = currVal - TOTAL_COST;
         const ret = (pnl / TOTAL_COST) * 100;
         return { pnl, ret, hasData: true };
@@ -194,7 +197,7 @@
       for (let day = 1; day <= daysInMonth; day++) {
         const dateObj = new Date(activeYear, activeMonth - 1, day);
         const dayOfWeek = dateObj.getDay();
-        if (dayOfWeek === 0 || dayOfWeek === 6) continue; // 跳過週末
+        if (dayOfWeek === 0 || dayOfWeek === 6) continue;
 
         const dateStr = `${activeYear}-${String(activeMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
         currentWeekDays.push({ day, dayOfWeek, dateStr });
@@ -205,7 +208,6 @@
         }
       }
 
-      // 計算當月整體損益
       const monthPrefix = `${activeYear}-${String(activeMonth).padStart(2, '0')}`;
       const monthDates = Object.keys(priceHistory).filter(d => d.startsWith(monthPrefix)).sort();
 
@@ -269,7 +271,6 @@
         grid.appendChild(cell);
       }
 
-      // 週統計格
       const weekCell = document.createElement("div");
       const isWeekUp = weekTotalPnl > 0;
       const isWeekDown = weekTotalPnl < 0;
@@ -307,7 +308,7 @@
 
       if (!isNaN(p685) && !isNaN(p50)) {
         priceHistory[activeSelectedDate] = { "00685L": p685, "0050": p50 };
-        saveHistory();
+        localStorage.setItem("portfolio_price_history", JSON.stringify(priceHistory));
         renderCalendar();
       }
       closeDayModal();
@@ -316,7 +317,7 @@
     function clearDayPrice() {
       if (priceHistory[activeSelectedDate]) {
         delete priceHistory[activeSelectedDate];
-        saveHistory();
+        localStorage.setItem("portfolio_price_history", JSON.stringify(priceHistory));
         renderCalendar();
       }
       closeDayModal();
@@ -327,45 +328,6 @@
       if (activeMonth < 1) { activeMonth = 12; activeYear--; }
       if (activeMonth > 12) { activeMonth = 1; activeYear++; }
       renderCalendar();
-    }
-
-    // 代理抓取收盤價 (雙代理重試)
-    async function fetchLatestPrices() {
-      const btn = document.getElementById("fetchBtn");
-      const btnText = document.getElementById("fetchBtnText");
-      btn.disabled = true;
-      btnText.textContent = "抓取中...";
-
-      try {
-        // 透過跨域轉發取得 Yahoo Finance / TWSE 最新報價
-        const targetUrl = encodeURIComponent("https://query1.finance.yahoo.com/v7/finance/quote?symbols=0050.TW,00685L.TW");
-        const proxyUrl = `https://api.allorigins.win/raw?url=${targetUrl}`;
-
-        const res = await fetch(proxyUrl);
-        const data = await res.json();
-        const results = data.quoteResponse.result;
-
-        const q50 = results.find(r => r.symbol === "0050.TW");
-        const q685 = results.find(r => r.symbol === "00685L.TW");
-
-        if (q50 && q685) {
-          const date = new Date(q50.regularMarketTime * 1000).toISOString().split("T")[0];
-          priceHistory[date] = {
-            "0050": q50.regularMarketPrice,
-            "00685L": q685.regularMarketPrice
-          };
-          saveHistory();
-          renderCalendar();
-          alert(`已成功取得最新行情 (${date})：\n00685L: ${q685.regularMarketPrice} 元\n0050: ${q50.regularMarketPrice} 元`);
-        } else {
-          throw new Error("找不到標的數據");
-        }
-      } catch (err) {
-        alert("自動抓取未成功（可能非開盤時段或代理連線逾時）。您可直接點擊當天格子進行手動填寫。");
-      } finally {
-        btn.disabled = false;
-        btnText.textContent = "抓取最新收盤";
-      }
     }
 
     function openBackupModal() {
@@ -382,18 +344,19 @@
         const parsed = JSON.parse(document.getElementById("jsonBackupArea").value);
         if (typeof parsed === "object" && parsed !== null) {
           priceHistory = parsed;
-          saveHistory();
+          localStorage.setItem("portfolio_price_history", JSON.stringify(priceHistory));
           renderCalendar();
           closeBackupModal();
-          alert("資料匯入成功！");
+          alert("匯入成功！");
         }
       } catch (e) {
-        alert("JSON 格式錯誤，請檢查後再試。");
+        alert("格式錯誤");
       }
     }
 
-    // 初始化月曆
+    // 啟動時先載入本機與 data.json
     renderCalendar();
+    syncDataJson();
   </script>
 </body>
 </html>
