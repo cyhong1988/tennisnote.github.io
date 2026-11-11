@@ -1,229 +1,399 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>網球學習系統 - 智慧進階版</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <style>
-        .note-card { transition: all 0.3s ease; border-top-width: 4px; }
-        .note-card:hover { transform: translateY(-3px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
-        .tag-forehand { background: #fee2e2; color: #dc2626; }
-        .tag-backhand { background: #dcfce7; color: #16a34a; }
-        .tag-serve { background: #fef9c3; color: #ca8a04; }
-        .tag-volley { background: #e0f2fe; color: #0284c7; }
-        .tag-grip { background: #f3e8ff; color: #9333ea; }
-        .category-btn.active { background-color: #1e293b; color: white; border-color: #1e293b; }
-        #importModal { display: none; }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>持股損益月曆 - 0050 & 00685L</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { background-color: #121417; color: #e5e7eb; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    .gain-text { color: #f87171; } /* 紅漲 */
+    .loss-text { color: #4ade80; } /* 綠跌 */
+    .neutral-text { color: #9ca3af; }
+    .card-bg { background-color: #1e2229; }
+    .cell-gain { background-color: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.25); }
+    .cell-loss { background-color: rgba(34, 197, 94, 0.12); border: 1px solid rgba(34, 197, 94, 0.25); }
+    .cell-empty { background-color: #16191f; border: 1px solid #242a35; }
+    .cell-week { background-color: #1a1e27; border: 1px solid #2d3544; }
+  </style>
 </head>
-<body class="bg-gray-50 min-h-screen pb-10">
+<body class="p-3 md:p-6 max-w-4xl mx-auto min-h-screen flex flex-col justify-between">
 
-    <nav class="bg-slate-800 text-white shadow-xl p-4 sticky top-0 z-50">
-        <div class="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
-            <h1 class="text-xl font-black tracking-wider">
-                <i class="fas fa-skating mr-2 text-yellow-400"></i>TENNIS LOG PRO
-            </h1>
-            <div class="flex items-center gap-3">
-                <button onclick="openAddModal()" class="bg-yellow-400 hover:bg-yellow-500 text-slate-900 px-4 py-1.5 rounded-full text-sm font-black transition-transform active:scale-95">
-                    <i class="fas fa-plus-circle mr-1"></i>新增筆記
-                </button>
-                <div class="relative">
-                    <input type="text" id="searchInput" placeholder="搜尋動作要領..." 
-                        class="pl-9 pr-4 py-1.5 rounded-full text-gray-800 text-sm focus:ring-2 focus:ring-yellow-400 outline-none w-48 md:w-64">
-                    <i class="fas fa-search absolute left-3 top-2.5 text-gray-400 text-xs"></i>
-                </div>
-            </div>
-        </div>
-    </nav>
+  <div>
+    <!-- 頂部控制列 -->
+    <header class="flex justify-between items-center mb-4">
+      <div class="flex items-center space-x-3">
+        <button onclick="changeMonth(-1)" class="p-2 rounded bg-gray-800 hover:bg-gray-700 text-gray-300">‹</button>
+        <h2 id="currentMonthLabel" class="text-xl md:text-2xl font-bold tracking-wide">2026/11 報酬</h2>
+        <button onclick="changeMonth(1)" class="p-2 rounded bg-gray-800 hover:bg-gray-700 text-gray-300">›</button>
+      </div>
+      <div class="flex items-center space-x-2">
+        <button id="fetchBtn" onclick="fetchLatestPrices()" class="px-3 py-1.5 text-xs md:text-sm bg-blue-600 hover:bg-blue-500 rounded text-white font-medium transition flex items-center">
+          <span id="fetchBtnText">抓取最新收盤</span>
+        </button>
+        <button onclick="openBackupModal()" class="p-2 rounded bg-gray-800 hover:bg-gray-700 text-gray-300" title="資料備份與匯入">
+          💾
+        </button>
+      </div>
+    </header>
 
-    <main class="max-w-6xl mx-auto p-4 md:p-6">
-        <div class="flex flex-wrap gap-2 mb-8 items-center bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
-            <span class="text-xs font-bold text-gray-400 mr-2 uppercase">快速過濾:</span>
-            <button onclick="filterNotes('all')" class="px-4 py-1 bg-slate-200 rounded-full text-xs font-bold hover:bg-slate-300">全部</button>
-            <button onclick="filterNotes('正拍')" class="px-4 py-1 tag-forehand rounded-full text-xs font-bold border border-red-100">正拍</button>
-            <button onclick="filterNotes('反拍')" class="px-4 py-1 tag-backhand rounded-full text-xs font-bold border border-green-100">反拍</button>
-            <button onclick="filterNotes('發球')" class="px-4 py-1 tag-serve rounded-full text-xs font-bold border border-yellow-100">發球</button>
-            <button onclick="filterNotes('截擊')" class="px-4 py-1 tag-volley rounded-full text-xs font-bold border border-blue-100">截擊/切球</button>
-        </div>
-
-        <div id="notesContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            </div>
-    </main>
-
-    <div id="importModal" class="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4">
-        <div class="bg-white rounded-3xl w-full max-w-xl shadow-2xl overflow-hidden shadow-indigo-500/20">
-            <div class="p-8">
-                <div class="flex justify-between items-center mb-6">
-                    <h3 class="text-2xl font-black text-slate-800">新增學習筆記</h3>
-                    <button onclick="toggleModal(false)" class="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
-                </div>
-                
-                <div class="space-y-5">
-                    <div>
-                        <label class="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-widest">課程日期</label>
-                        <input type="date" id="newNoteDate" class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-yellow-400 outline-none font-bold text-slate-700">
-                    </div>
-
-                    <div>
-                        <label class="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-widest">技術分類 (可多選)</label>
-                        <div id="categoryPicker" class="flex flex-wrap gap-2">
-                            <button type="button" onclick="this.classList.toggle('active')" class="category-btn px-4 py-1.5 border border-gray-200 rounded-lg text-xs font-bold transition-all">正拍</button>
-                            <button type="button" onclick="this.classList.toggle('active')" class="category-btn px-4 py-1.5 border border-gray-200 rounded-lg text-xs font-bold transition-all">反拍</button>
-                            <button type="button" onclick="this.classList.toggle('active')" class="category-btn px-4 py-1.5 border border-gray-200 rounded-lg text-xs font-bold transition-all">截擊</button>
-                            <button type="button" onclick="this.classList.toggle('active')" class="category-btn px-4 py-1.5 border border-gray-200 rounded-lg text-xs font-bold transition-all">切球</button>
-                            <button type="button" onclick="this.classList.toggle('active')" class="category-btn px-4 py-1.5 border border-gray-200 rounded-lg text-xs font-bold transition-all">發球</button>
-                            <button type="button" onclick="this.classList.toggle('active')" class="category-btn px-4 py-1.5 border border-gray-200 rounded-lg text-xs font-bold transition-all">其他</button>
-                        </div>
-                    </div>
-
-                    <div>
-                        <label class="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-widest">筆記內容</label>
-                        <textarea id="newNoteContent" class="w-full h-40 p-4 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-yellow-400 outline-none text-sm" placeholder="輸入今天的技術心得..."></textarea>
-                    </div>
-                </div>
-
-                <div class="mt-8 flex gap-3">
-                    <button onclick="saveNewNote()" class="flex-1 bg-slate-800 text-white py-4 rounded-xl font-black hover:bg-slate-700 transition shadow-xl">儲存筆記</button>
-                </div>
-            </div>
-        </div>
+    <!-- 頂部月總計展示欄 -->
+    <div class="grid grid-cols-2 gap-4 mb-5 p-4 rounded-xl bg-gray-900 border border-gray-800">
+      <div>
+        <div class="text-xs text-gray-400">當月累積損益 (元)</div>
+        <div id="monthlyPnlVal" class="text-2xl md:text-3xl font-extrabold mt-1 tracking-tight">0</div>
+      </div>
+      <div class="text-right">
+        <div class="text-xs text-gray-400">當月總報酬率</div>
+        <div id="monthlyReturnVal" class="text-2xl md:text-3xl font-extrabold mt-1 tracking-tight">0.00%</div>
+      </div>
     </div>
 
-    <script>
-        let tennisData = [
-            /* ... 原有資料庫內容 (為節省長度，這裡由原本代碼中的 1/7 到 12/9 組成) ... */
-            { date: "1/7", tech: "正拍", content: "右手上拍伸直，左手平行。靠腰轉動擊球。手肘收在下巴。" },
-            { date: "1/16", tech: "正拍", content: "拉拍頂點放鬆，下拍自然放下，轉動髖骨擊球。" },
-            { date: "1/21", tech: "正拍 反拍", content: "先拉拍再移動。長球退後抓距離，短球跑場中。" },
-            { date: "1/25", tech: "正拍 反拍", content: "正拍左手不掉。反拍重心左腳移右腳後跨左腳。" },
-            { date: "2/4", tech: "正拍 反拍", content: "手腕90度。反拍跨大步，放鬆打球。" },
-            { date: "2/11", tech: "正拍 反拍 發球", content: "雨刷向上刷。發球向後倒，拋球11:30-12:30。" },
-            { date: "2/18", tech: "正拍 腳步 發球", content: "打直線練控球。橫移用腳尖防翻船。拋球左手指球。" },
-            { date: "2/25", tech: "正拍 反拍 發球 腳步", content: "擊球要蹲、要挺胸。對打要原地跳起(Split Step)。" },
-            { date: "3/14", tech: "正拍 反拍 發球", content: "左手背頂右手肘固定。發球像甩鞭子甩出。" },
-            { date: "3/25", tech: "正拍", content: "用右腳左手找球。微蹲帶動髖骨。" },
-            { date: "3/27", tech: "正拍", content: "拍面朝自己，提前拉拍，重心在後。" },
-            { date: "4/15", tech: "正拍 腳步", content: "原地跳完拉拍。兩腳不墊腳。延遲出拍。" },
-            { date: "4/22", tech: "正拍 截擊", content: "正拍L型推刷球。切球握刀拍V型拉拍，由左上往右下。" },
-            { date: "5/6", tech: "正拍", content: "拍底朝球，轉動甩出。利用轉身刷球過網。" },
-            { date: "5/13", tech: "正拍 腳步", content: "對打預備：扶拍/轉身/固定/腳步。屁股要頂。" },
-            { date: "5/20", tech: "正拍", content: "最高點放鬆，擊球左腳跨出不跳開。打完抱胸。" },
-            { date: "6/2", tech: "正拍 反拍 發球 截擊", content: "正拍左手縮，發球肘前伸，截擊左腳跨出。" },
-            { date: "6/10", tech: "握拍 發球", content: "食指分開握法。發球肘向前，用甩的收拍。" },
-            { date: "6/16", tech: "握拍 正拍", content: "指間無縫隙。纏兩層握把布。正拍右腳踩穩。" },
-            { date: "7/1", tech: "正拍 反拍 截擊", content: "正拍用踩的。截擊手腕轉45度嚴禁拉拍。" },
-            { date: "7/22", tech: "截擊", content: "正截踩左腳，反截踩右腳。往前方下壓。" },
-            { date: "9/2", tech: "正拍 發球", content: "擊球點靠近身體打直線。發球向右畫彩虹。" },
-            { date: "9/9", tech: "正拍 反拍 發球", content: "軟球小碎步側身攻擊。發球右手貼近後腦。" },
-            { date: "9/16", tech: "發球 正拍", content: "上旋發球向上刷，擊球點7點。正拍黏球。" },
-            { date: "9/30", tech: "正拍 反拍", content: "高球左手伸，踩開放式。中場軟球先轉身。" },
-            { date: "10/7", tech: "截擊", content: "切球身體壓。小球45度滑過網。" },
-            { date: "10/28", tech: "反拍", content: "拉拍舉高擊球放低。身體轉動出擊。" },
-            { date: "11/4", tech: "正拍 發球", content: "右手拉拍放鬆。發球似梳頭方向。" },
-            { date: "12/2", tech: "正拍", content: "提早拉拍。打延伸不打薄。開放式右腳跳。" },
-            { date: "12/9", tech: "正拍 反拍", content: "等球轉身不急。反拍收拍收高。" }
-        ];
+    <!-- 月曆熱力表格 -->
+    <div class="rounded-xl overflow-hidden border border-gray-800 bg-gray-900/60 shadow-xl p-2 md:p-4">
+      <div class="grid grid-cols-6 gap-1 md:gap-2 text-center text-xs md:text-sm text-gray-400 font-semibold mb-2">
+        <div>一</div>
+        <div>二</div>
+        <div>三</div>
+        <div>四</div>
+        <div>五</div>
+        <div class="text-amber-400">週損益</div>
+      </div>
+      <div id="calendarGrid" class="grid grid-cols-6 gap-1 md:gap-2"></div>
+    </div>
 
-        // 開啟彈窗並帶入今日日期
-        function openAddModal() {
-            const now = new Date();
-            const year = now.getFullYear();
-            const month = String(now.getMonth() + 1).padStart(2, '0');
-            const day = String(now.getDate()).padStart(2, '0');
-            document.getElementById('newNoteDate').value = `${year}-${month}-${day}`;
-            
-            // 重設分類選擇器狀態
-            document.querySelectorAll('.category-btn').forEach(btn => btn.classList.remove('active'));
-            toggleModal(true);
+    <!-- 持股部位說明卡 -->
+    <div class="mt-6 p-4 rounded-xl card-bg border border-gray-800 text-xs md:text-sm text-gray-300">
+      <div class="font-bold text-gray-200 mb-2 flex justify-between">
+        <span>持股追蹤部位</span>
+        <span class="text-gray-400 font-normal">總持股成本：NT$ 7,212,180</span>
+      </div>
+      <div class="grid grid-cols-2 gap-4">
+        <div class="bg-gray-900/50 p-2.5 rounded border border-gray-800">
+          <div class="font-bold text-white">群益臺灣加權正2 (00685L)</div>
+          <div class="text-gray-400 mt-1">股數：624,000 股</div>
+          <div class="text-gray-400">均價：10.22 元 (成本 6,377,280 元)</div>
+        </div>
+        <div class="bg-gray-900/50 p-2.5 rounded border border-gray-800">
+          <div class="font-bold text-white">元大台灣50 (0050)</div>
+          <div class="text-gray-400 mt-1">股數：11,000 股</div>
+          <div class="text-gray-400">均價：75.90 元 (成本 834,900 元)</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mt-6 text-center text-xs text-gray-500">
+    提示：點擊任何一天格子即可手動校正或輸入當日收盤價。
+  </div>
+
+  <!-- 單日收盤價彈窗 -->
+  <div id="dayModal" class="fixed inset-0 bg-black/70 hidden flex items-center justify-center p-4 z-50">
+    <div class="bg-gray-900 border border-gray-700 rounded-xl max-w-sm w-full p-5 shadow-2xl">
+      <h3 id="modalDateTitle" class="text-lg font-bold mb-3 text-white">收盤價校正</h3>
+      <div class="space-y-3">
+        <div>
+          <label class="block text-xs text-gray-400 mb-1">00685L 收盤價 (元)</label>
+          <input type="number" step="0.01" id="input00685L" placeholder="例: 10.35" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+        </div>
+        <div>
+          <label class="block text-xs text-gray-400 mb-1">0050 收盤價 (元)</label>
+          <input type="number" step="0.05" id="input0050" placeholder="例: 105.00" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+        </div>
+      </div>
+      <div class="flex justify-between items-center mt-5">
+        <button onclick="clearDayPrice()" class="text-xs text-red-400 hover:underline">清除此日</button>
+        <div class="flex space-x-2">
+          <button onclick="closeDayModal()" class="px-3 py-1.5 text-sm bg-gray-800 hover:bg-gray-700 rounded text-gray-300">取消</button>
+          <button onclick="saveDayPrice()" class="px-4 py-1.5 text-sm bg-blue-600 hover:bg-blue-500 rounded text-white font-medium">確認儲存</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 資料匯出／匯入彈窗 -->
+  <div id="backupModal" class="fixed inset-0 bg-black/70 hidden flex items-center justify-center p-4 z-50">
+    <div class="bg-gray-900 border border-gray-700 rounded-xl max-w-md w-full p-5 shadow-2xl">
+      <h3 class="text-lg font-bold mb-2 text-white">收盤價資料備份與匯入</h3>
+      <p class="text-xs text-gray-400 mb-3">您可以複製以下 JSON 備份歷史收盤價，或將外部整理的收盤價貼入並點擊匯入。</p>
+      <textarea id="jsonBackupArea" rows="8" class="w-full bg-gray-800 border border-gray-700 rounded p-2 text-xs text-gray-200 font-mono focus:outline-none"></textarea>
+      <div class="flex justify-between items-center mt-4">
+        <button onclick="closeBackupModal()" class="px-3 py-1.5 text-sm bg-gray-800 hover:bg-gray-700 rounded text-gray-300">關閉</button>
+        <button onclick="importJsonData()" class="px-4 py-1.5 text-sm bg-blue-600 hover:bg-blue-500 rounded text-white font-medium">匯入資料</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const PORTFOLIO = {
+      "00685L": { shares: 624000, cost: 6377280 },
+      "0050": { shares: 11000, cost: 834900 }
+    };
+    const TOTAL_COST = 7212180;
+
+    // 從 localStorage 讀取收盤價資料庫
+    let priceHistory = JSON.parse(localStorage.getItem("portfolio_price_history")) || {};
+
+    let activeYear = 2026;
+    let activeMonth = 11;
+    let activeSelectedDate = null;
+
+    function saveHistory() {
+      localStorage.setItem("portfolio_price_history", JSON.stringify(priceHistory));
+    }
+
+    function formatNumber(num) {
+      if (Math.abs(num) >= 10000) {
+        return (num / 10000).toFixed(1) + "萬";
+      }
+      return Math.round(num).toLocaleString();
+    }
+
+    function calculateMarketValue(prices) {
+      if (!prices || prices["00685L"] === undefined || prices["0050"] === undefined) return null;
+      return (PORTFOLIO["00685L"].shares * prices["00685L"]) + (PORTFOLIO["0050"].shares * prices["0050"]);
+    }
+
+    function getSortedRecordedDates() {
+      return Object.keys(priceHistory).sort();
+    }
+
+    function getDailyStats(dateStr) {
+      const todayPrice = priceHistory[dateStr];
+      if (!todayPrice || todayPrice["00685L"] === undefined || todayPrice["0050"] === undefined) {
+        return { pnl: 0, ret: 0, hasData: false };
+      }
+
+      const allDates = getSortedRecordedDates();
+      const idx = allDates.indexOf(dateStr);
+      const currVal = calculateMarketValue(todayPrice);
+
+      if (idx <= 0) {
+        // 第一筆無前日比較基準時，以總成本為基底
+        const pnl = currVal - TOTAL_COST;
+        const ret = (pnl / TOTAL_COST) * 100;
+        return { pnl, ret, hasData: true };
+      }
+
+      const prevPrice = priceHistory[allDates[idx - 1]];
+      const prevVal = calculateMarketValue(prevPrice);
+      const pnl = currVal - prevVal;
+      const ret = prevVal ? (pnl / prevVal) * 100 : 0;
+      return { pnl, ret, hasData: true };
+    }
+
+    function renderCalendar() {
+      document.getElementById("currentMonthLabel").textContent = `${activeYear}/${String(activeMonth).padStart(2, '0')} 報酬`;
+      const grid = document.getElementById("calendarGrid");
+      grid.innerHTML = "";
+
+      const daysInMonth = new Date(activeYear, activeMonth, 0).getDate();
+      let currentWeekDays = [];
+      let weekCounter = 1;
+
+      for (let day = 1; day <= daysInMonth; day++) {
+        const dateObj = new Date(activeYear, activeMonth - 1, day);
+        const dayOfWeek = dateObj.getDay();
+        if (dayOfWeek === 0 || dayOfWeek === 6) continue; // 跳過週末
+
+        const dateStr = `${activeYear}-${String(activeMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        currentWeekDays.push({ day, dayOfWeek, dateStr });
+
+        if (dayOfWeek === 5 || day === daysInMonth) {
+          renderWeekRow(grid, currentWeekDays, weekCounter++);
+          currentWeekDays = [];
+        }
+      }
+
+      // 計算當月整體損益
+      const monthPrefix = `${activeYear}-${String(activeMonth).padStart(2, '0')}`;
+      const monthDates = Object.keys(priceHistory).filter(d => d.startsWith(monthPrefix)).sort();
+
+      let monthTotalPnl = 0;
+      monthDates.forEach(d => {
+        const stats = getDailyStats(d);
+        if (stats.hasData) monthTotalPnl += stats.pnl;
+      });
+
+      const pnlEl = document.getElementById("monthlyPnlVal");
+      const retEl = document.getElementById("monthlyReturnVal");
+      pnlEl.textContent = (monthTotalPnl > 0 ? "+" : "") + Math.round(monthTotalPnl).toLocaleString();
+      pnlEl.className = `text-2xl md:text-3xl font-extrabold mt-1 tracking-tight ${monthTotalPnl > 0 ? 'gain-text' : monthTotalPnl < 0 ? 'loss-text' : 'neutral-text'}`;
+
+      const totalRet = (monthTotalPnl / TOTAL_COST) * 100;
+      retEl.textContent = (totalRet > 0 ? "+" : "") + totalRet.toFixed(2) + "%";
+      retEl.className = `text-2xl md:text-3xl font-extrabold mt-1 tracking-tight ${totalRet > 0 ? 'gain-text' : totalRet < 0 ? 'loss-text' : 'neutral-text'}`;
+    }
+
+    function renderWeekRow(grid, days, weekIdx) {
+      let weekTotalPnl = 0;
+      let hasWeekData = false;
+
+      for (let w = 1; w <= 5; w++) {
+        const item = days.find(d => d.dayOfWeek === w);
+        if (!item) {
+          const emptyCell = document.createElement("div");
+          emptyCell.className = "cell-empty min-h-[75px] md:min-h-[85px] rounded-lg p-2";
+          grid.appendChild(emptyCell);
+          continue;
         }
 
-        function sortAndRender() {
-            // 排序邏輯
-            tennisData.sort((a, b) => {
-                const [aM, aD] = a.date.split('/').map(Number);
-                const [bM, bD] = b.date.split('/').map(Number);
-                return aM !== bM ? aM - bM : aD - bD;
-            });
-
-            const container = document.getElementById('notesContainer');
-            container.innerHTML = '';
-            
-            tennisData.forEach(note => {
-                const card = document.createElement('div');
-                card.className = "note-card bg-white p-6 rounded-3xl shadow-sm border-slate-800";
-                card.setAttribute('data-tech', note.tech);
-                
-                let tags = note.tech.split(' ').map(t => {
-                    let cls = "bg-slate-100 text-slate-500";
-                    if(t === "正拍") cls = "tag-forehand";
-                    if(t === "反拍") cls = "tag-backhand";
-                    if(t === "發球") cls = "tag-serve";
-                    if(t === "截擊" || t === "切球") cls = "tag-volley";
-                    if(t === "握拍") cls = "tag-grip";
-                    return `<span class="${cls} text-[10px] px-2.5 py-1 rounded-full font-black mr-1">${t}</span>`;
-                }).join('');
-
-                card.innerHTML = `
-                    <div class="flex justify-between items-start mb-4">
-                        <div class="bg-slate-800 text-white px-3 py-1 rounded-xl text-xs font-black">${note.date}</div>
-                        <div class="flex flex-wrap justify-end gap-1">${tags}</div>
-                    </div>
-                    <div class="text-gray-700 text-sm leading-relaxed whitespace-pre-line font-medium">${note.content}</div>
-                `;
-                container.appendChild(card);
-            });
+        const stats = getDailyStats(item.dateStr);
+        if (stats.hasData) {
+          weekTotalPnl += stats.pnl;
+          hasWeekData = true;
         }
 
-        function saveNewNote() {
-            const dateInput = document.getElementById('newNoteDate').value;
-            const content = document.getElementById('newNoteContent').value;
-            if(!dateInput || !content) return alert("日期與內容都要填寫喔！");
+        const cell = document.createElement("div");
+        const isUp = stats.pnl > 0;
+        const isDown = stats.pnl < 0;
+        const bgClass = !stats.hasData ? "cell-empty" : (isUp ? "cell-gain" : isDown ? "cell-loss" : "cell-empty");
 
-            // 格式化日期從 2025-12-24 變成 12/24
-            const parts = dateInput.split('-');
-            const formattedDate = `${parseInt(parts[1])}/${parseInt(parts[2])}`;
+        cell.className = `${bgClass} min-h-[75px] md:min-h-[85px] rounded-lg p-2 cursor-pointer transition hover:opacity-80 flex flex-col justify-between`;
+        cell.onclick = () => openDayModal(item.dateStr);
 
-            // 獲取選中的分類
-            let selectedTechs = [];
-            document.querySelectorAll('.category-btn.active').forEach(btn => {
-                selectedTechs.push(btn.innerText);
-            });
-            if(selectedTechs.length === 0) selectedTechs.push("其他");
+        cell.innerHTML = `
+          <div class="text-xs text-gray-400 font-bold">${item.day}</div>
+          <div class="text-center">
+            ${stats.hasData ? `
+              <div class="text-xs md:text-sm font-black ${isUp ? 'gain-text' : isDown ? 'loss-text' : 'neutral-text'}">
+                ${(stats.pnl > 0 ? "+" : "") + formatNumber(stats.pnl)}
+              </div>
+              <div class="text-[10px] md:text-xs font-semibold ${isUp ? 'gain-text' : isDown ? 'loss-text' : 'neutral-text'}">
+                ${(stats.ret > 0 ? "+" : "") + stats.ret.toFixed(2)}%
+              </div>
+            ` : `<div class="text-[10px] text-gray-600 mt-2">未記錄</div>`}
+          </div>
+          <div></div>
+        `;
+        grid.appendChild(cell);
+      }
 
-            tennisData.push({ 
-                date: formattedDate, 
-                tech: selectedTechs.join(' '), 
-                content: content 
-            });
+      // 週統計格
+      const weekCell = document.createElement("div");
+      const isWeekUp = weekTotalPnl > 0;
+      const isWeekDown = weekTotalPnl < 0;
+      weekCell.className = "cell-week min-h-[75px] md:min-h-[85px] rounded-lg p-2 flex flex-col justify-between text-center";
+      weekCell.innerHTML = `
+        <div class="text-xs text-amber-500 font-bold self-end">${weekIdx}</div>
+        <div>
+          ${hasWeekData ? `
+            <div class="text-xs md:text-sm font-black ${isWeekUp ? 'gain-text' : isWeekDown ? 'loss-text' : 'neutral-text'}">
+              ${(weekTotalPnl > 0 ? "+" : "") + formatNumber(weekTotalPnl)}
+            </div>
+          ` : `<div class="text-[10px] text-gray-600">-</div>`}
+        </div>
+        <div class="text-[9px] text-gray-500">週總計</div>
+      `;
+      grid.appendChild(weekCell);
+    }
 
-            sortAndRender();
-            toggleModal(false);
-            document.getElementById('newNoteContent').value = '';
+    function openDayModal(dateStr) {
+      activeSelectedDate = dateStr;
+      document.getElementById("modalDateTitle").textContent = `${dateStr} 收盤價校正`;
+      const current = priceHistory[dateStr] || {};
+      document.getElementById("input00685L").value = current["00685L"] !== undefined ? current["00685L"] : "";
+      document.getElementById("input0050").value = current["0050"] !== undefined ? current["0050"] : "";
+      document.getElementById("dayModal").classList.remove("hidden");
+    }
+
+    function closeDayModal() {
+      document.getElementById("dayModal").classList.add("hidden");
+    }
+
+    function saveDayPrice() {
+      const p685 = parseFloat(document.getElementById("input00685L").value);
+      const p50 = parseFloat(document.getElementById("input0050").value);
+
+      if (!isNaN(p685) && !isNaN(p50)) {
+        priceHistory[activeSelectedDate] = { "00685L": p685, "0050": p50 };
+        saveHistory();
+        renderCalendar();
+      }
+      closeDayModal();
+    }
+
+    function clearDayPrice() {
+      if (priceHistory[activeSelectedDate]) {
+        delete priceHistory[activeSelectedDate];
+        saveHistory();
+        renderCalendar();
+      }
+      closeDayModal();
+    }
+
+    function changeMonth(delta) {
+      activeMonth += delta;
+      if (activeMonth < 1) { activeMonth = 12; activeYear--; }
+      if (activeMonth > 12) { activeMonth = 1; activeYear++; }
+      renderCalendar();
+    }
+
+    // 代理抓取收盤價 (雙代理重試)
+    async function fetchLatestPrices() {
+      const btn = document.getElementById("fetchBtn");
+      const btnText = document.getElementById("fetchBtnText");
+      btn.disabled = true;
+      btnText.textContent = "抓取中...";
+
+      try {
+        // 透過跨域轉發取得 Yahoo Finance / TWSE 最新報價
+        const targetUrl = encodeURIComponent("https://query1.finance.yahoo.com/v7/finance/quote?symbols=0050.TW,00685L.TW");
+        const proxyUrl = `https://api.allorigins.win/raw?url=${targetUrl}`;
+
+        const res = await fetch(proxyUrl);
+        const data = await res.json();
+        const results = data.quoteResponse.result;
+
+        const q50 = results.find(r => r.symbol === "0050.TW");
+        const q685 = results.find(r => r.symbol === "00685L.TW");
+
+        if (q50 && q685) {
+          const date = new Date(q50.regularMarketTime * 1000).toISOString().split("T")[0];
+          priceHistory[date] = {
+            "0050": q50.regularMarketPrice,
+            "00685L": q685.regularMarketPrice
+          };
+          saveHistory();
+          renderCalendar();
+          alert(`已成功取得最新行情 (${date})：\n00685L: ${q685.regularMarketPrice} 元\n0050: ${q50.regularMarketPrice} 元`);
+        } else {
+          throw new Error("找不到標的數據");
         }
+      } catch (err) {
+        alert("自動抓取未成功（可能非開盤時段或代理連線逾時）。您可直接點擊當天格子進行手動填寫。");
+      } finally {
+        btn.disabled = false;
+        btnText.textContent = "抓取最新收盤";
+      }
+    }
 
-        function toggleModal(s) { document.getElementById('importModal').style.display = s ? 'flex' : 'none'; }
+    function openBackupModal() {
+      document.getElementById("jsonBackupArea").value = JSON.stringify(priceHistory, null, 2);
+      document.getElementById("backupModal").classList.remove("hidden");
+    }
 
-        // 搜尋
-        document.getElementById('searchInput').addEventListener('input', (e) => {
-            const term = e.target.value.toLowerCase();
-            document.querySelectorAll('.note-card').forEach(card => {
-                card.style.display = card.innerText.toLowerCase().includes(term) ? 'block' : 'none';
-            });
-        });
+    function closeBackupModal() {
+      document.getElementById("backupModal").classList.add("hidden");
+    }
 
-        // 快速過濾
-        function filterNotes(tech) {
-            document.querySelectorAll('.note-card').forEach(card => {
-                if(tech === 'all') card.style.display = 'block';
-                else card.style.display = card.getAttribute('data-tech').includes(tech) ? 'block' : 'none';
-            });
+    function importJsonData() {
+      try {
+        const parsed = JSON.parse(document.getElementById("jsonBackupArea").value);
+        if (typeof parsed === "object" && parsed !== null) {
+          priceHistory = parsed;
+          saveHistory();
+          renderCalendar();
+          closeBackupModal();
+          alert("資料匯入成功！");
         }
+      } catch (e) {
+        alert("JSON 格式錯誤，請檢查後再試。");
+      }
+    }
 
-        // 初始化
-        sortAndRender();
-    </script>
+    // 初始化月曆
+    renderCalendar();
+  </script>
 </body>
 </html>
-
