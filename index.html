@@ -1,362 +1,151 @@
 <!DOCTYPE html>
-<html lang="zh-TW">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>持股損益月曆 - 0050 & 00685L</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <style>
-    body { background-color: #121417; color: #e5e7eb; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-    .gain-text { color: #f87171; }
-    .loss-text { color: #4ade80; }
-    .neutral-text { color: #9ca3af; }
-    .card-bg { background-color: #1e2229; }
-    .cell-gain { background-color: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.25); }
-    .cell-loss { background-color: rgba(34, 197, 94, 0.12); border: 1px solid rgba(34, 197, 94, 0.25); }
-    .cell-empty { background-color: #16191f; border: 1px solid #242a35; }
-    .cell-week { background-color: #1a1e27; border: 1px solid #2d3544; }
-  </style>
-</head>
-<body class="p-3 md:p-6 max-w-4xl mx-auto min-h-screen flex flex-col justify-between">
+<html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>損益日曆</title>
+<style>
+:root{--bg:#fff;--fg:#111;--mut:#888;--cell:#f3f3f3;--up:#d9534f;--dn:#2e8b57;--upbg:#f8dcdc;--dnbg:#d6ecde;--line:#ccc}
+@media (prefers-color-scheme:dark){:root{--bg:#1c1c1e;--fg:#f2f2f2;--mut:#999;--cell:#262628;--up:#ff5a5a;--dn:#3fbf63;--upbg:#5a2224;--dnbg:#26482f;--line:#555}}
+body{background:var(--bg);color:var(--fg);font-family:-apple-system,"PingFang TC","Noto Sans TC",sans-serif;margin:0 auto;padding:12px;max-width:560px}
+.top{display:flex;justify-content:space-between;align-items:center;font-size:17px}
+.top button{background:none;border:0;color:var(--fg);font-size:24px;padding:4px 12px}
+.big{display:flex;justify-content:space-between;font-size:28px;font-weight:600;margin:6px 0 4px}
+.sub{color:var(--mut);font-size:12px;margin-bottom:10px}
+.g{display:grid;grid-template-columns:repeat(5,1fr) 1.15fr;gap:4px}
+.h{text-align:center;color:var(--mut);font-size:13px;padding:4px}
+.c{background:var(--cell);border-radius:8px;min-height:64px;padding:4px;font-size:11px;text-align:right;color:var(--mut);cursor:pointer}
+.c b{display:block;font-size:13px;color:var(--fg);margin-top:6px}
+.c.u{background:var(--upbg)}.c.d{background:var(--dnbg)}
+.c.m{border:1px dashed var(--line);background:transparent}
+.c.x{opacity:.35;cursor:default}
+.up{color:var(--up)!important}.dn{color:var(--dn)!important}
+.note{color:var(--mut);font-size:12px;margin-top:12px;line-height:1.6}
+/* 數字輸入彈窗樣式 */
+dialog{background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:14px;padding:18px;width:270px;max-width:85vw;box-shadow:0 8px 24px rgba(0,0,0,.25)}
+dialog::backdrop{background:rgba(0,0,0,.45)}
+dialog h3{margin:0 0 14px;font-size:16px}
+dialog label{display:block;font-size:13px;color:var(--mut);margin-bottom:12px}
+dialog input{width:100%;box-sizing:border-box;margin-top:4px;padding:8px 10px;font-size:18px;border:1px solid var(--line);border-radius:8px;background:var(--cell);color:var(--fg)}
+.btns{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
+.btns button{border:0;border-radius:8px;padding:8px 16px;font-size:15px;cursor:pointer;background:var(--cell);color:var(--fg)}
+.btns button[type=submit]{background:var(--up);color:#fff;font-weight:600}
+</style></head><body>
+<div class="top"><button id="p">‹</button><span id="t"></span><button id="n">›</button></div>
+<div class="big"><span id="mp"></span><span id="mr"></span></div>
+<div class="sub" id="sum"></div>
+<div class="g" id="g"></div>
+<div class="note">點任一交易日格子，可輸入／修改當日收盤價（0050、00685L）。虛線格＝缺收盤價，待填。資料存在本機瀏覽器。<br>損益 = 持股數 ×（當日收盤 − 前一交易日收盤），報酬率以前一日持股市值為基準；假設區間內持股數不變。</div>
 
-  <div>
-    <!-- 頂部控制列 -->
-    <header class="flex justify-between items-center mb-4">
-      <div class="flex items-center space-x-3">
-        <button onclick="changeMonth(-1)" class="p-2 rounded bg-gray-800 hover:bg-gray-700 text-gray-300">‹</button>
-        <h2 id="currentMonthLabel" class="text-xl md:text-2xl font-bold tracking-wide">2026/11 報酬</h2>
-        <button onclick="changeMonth(1)" class="p-2 rounded bg-gray-800 hover:bg-gray-700 text-gray-300">›</button>
-      </div>
-      <div class="flex items-center space-x-2">
-        <button onclick="syncDataJson()" class="px-3 py-1.5 text-xs md:text-sm bg-blue-600 hover:bg-blue-500 rounded text-white font-medium transition">
-          重新整理資料
-        </button>
-        <button onclick="openBackupModal()" class="p-2 rounded bg-gray-800 hover:bg-gray-700 text-gray-300" title="備份/匯入">
-          💾
-        </button>
-      </div>
-    </header>
-
-    <!-- 當月總計 -->
-    <div class="grid grid-cols-2 gap-4 mb-5 p-4 rounded-xl bg-gray-900 border border-gray-800">
-      <div>
-        <div class="text-xs text-gray-400">當月累積損益 (元)</div>
-        <div id="monthlyPnlVal" class="text-2xl md:text-3xl font-extrabold mt-1 tracking-tight">0</div>
-      </div>
-      <div class="text-right">
-        <div class="text-xs text-gray-400">當月總報酬率</div>
-        <div id="monthlyReturnVal" class="text-2xl md:text-3xl font-extrabold mt-1 tracking-tight">0.00%</div>
-      </div>
+<!-- 數字鍵盤專用輸入視窗 -->
+<dialog id="dlg">
+  <form method="dialog" id="frm">
+    <h3 id="dt"></h3>
+    <label>0050 收盤價
+      <input id="ia" type="text" inputmode="decimal" pattern="[0-9.]*" placeholder="留空＝不變">
+    </label>
+    <label>00685L 收盤價
+      <input id="ib" type="text" inputmode="decimal" pattern="[0-9.]*" placeholder="留空＝不變">
+    </label>
+    <div class="btns">
+      <button type="button" id="cancel">取消</button>
+      <button type="submit">儲存</button>
     </div>
+  </form>
+</dialog>
 
-    <!-- 月曆 -->
-    <div class="rounded-xl overflow-hidden border border-gray-800 bg-gray-900/60 shadow-xl p-2 md:p-4">
-      <div class="grid grid-cols-6 gap-1 md:gap-2 text-center text-xs md:text-sm text-gray-400 font-semibold mb-2">
-        <div>一</div>
-        <div>二</div>
-        <div>三</div>
-        <div>四</div>
-        <div>五</div>
-        <div class="text-amber-400">週損益</div>
-      </div>
-      <div id="calendarGrid" class="grid grid-cols-6 gap-1 md:gap-2"></div>
-    </div>
-
-    <!-- 持股部位 -->
-    <div class="mt-6 p-4 rounded-xl card-bg border border-gray-800 text-xs md:text-sm text-gray-300">
-      <div class="font-bold text-gray-200 mb-2 flex justify-between">
-        <span>持股追蹤部位</span>
-        <span class="text-gray-400 font-normal">總持股成本：NT$ 7,212,180</span>
-      </div>
-      <div class="grid grid-cols-2 gap-4">
-        <div class="bg-gray-900/50 p-2.5 rounded border border-gray-800">
-          <div class="font-bold text-white">群益臺灣加權正2 (00685L)</div>
-          <div class="text-gray-400 mt-1">股數：624,000 股</div>
-          <div class="text-gray-400">均價：10.22 元</div>
-        </div>
-        <div class="bg-gray-900/50 p-2.5 rounded border border-gray-800">
-          <div class="font-bold text-white">元大台灣50 (0050)</div>
-          <div class="text-gray-400 mt-1">股數：11,000 股</div>
-          <div class="text-gray-400">均價：75.90 元</div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="mt-6 text-center text-xs text-gray-500">
-    提示：點擊任何日期方格可直接手動補正收盤價。
-  </div>
-
-  <!-- 單日彈窗 -->
-  <div id="dayModal" class="fixed inset-0 bg-black/70 hidden flex items-center justify-center p-4 z-50">
-    <div class="bg-gray-900 border border-gray-700 rounded-xl max-w-sm w-full p-5 shadow-2xl">
-      <h3 id="modalDateTitle" class="text-lg font-bold mb-3 text-white">收盤價校正</h3>
-      <div class="space-y-3">
-        <div>
-          <label class="block text-xs text-gray-400 mb-1">00685L 收盤價 (元)</label>
-          <input type="number" step="0.01" id="input00685L" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white">
-        </div>
-        <div>
-          <label class="block text-xs text-gray-400 mb-1">0050 收盤價 (元)</label>
-          <input type="number" step="0.05" id="input0050" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white">
-        </div>
-      </div>
-      <div class="flex justify-between items-center mt-5">
-        <button onclick="clearDayPrice()" class="text-xs text-red-400 hover:underline">清除此日</button>
-        <div class="flex space-x-2">
-          <button onclick="closeDayModal()" class="px-3 py-1.5 text-sm bg-gray-800 rounded text-gray-300">取消</button>
-          <button onclick="saveDayPrice()" class="px-4 py-1.5 text-sm bg-blue-600 rounded text-white font-medium">儲存</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- 備份彈窗 -->
-  <div id="backupModal" class="fixed inset-0 bg-black/70 hidden flex items-center justify-center p-4 z-50">
-    <div class="bg-gray-900 border border-gray-700 rounded-xl max-w-md w-full p-5 shadow-2xl">
-      <h3 class="text-lg font-bold mb-2 text-white">資料備份與匯入</h3>
-      <textarea id="jsonBackupArea" rows="8" class="w-full bg-gray-800 border border-gray-700 rounded p-2 text-xs text-gray-200 font-mono"></textarea>
-      <div class="flex justify-between items-center mt-4">
-        <button onclick="closeBackupModal()" class="px-3 py-1.5 text-sm bg-gray-800 rounded text-gray-300">關閉</button>
-        <button onclick="importJsonData()" class="px-4 py-1.5 text-sm bg-blue-600 rounded text-white font-medium">匯入</button>
-      </div>
-    </div>
-  </div>
-
-  <script>
-    const PORTFOLIO = {
-      "00685L": { shares: 624000, cost: 6377280 },
-      "0050": { shares: 11000, cost: 834900 }
-    };
-    const TOTAL_COST = 7212180;
-
-    let priceHistory = JSON.parse(localStorage.getItem("portfolio_price_history")) || {};
-    let activeYear = 2026;
-    let activeMonth = 11;
-    let activeSelectedDate = null;
-
-    // 自動加載同一目錄下的 data.json
-    async function syncDataJson() {
-      try {
-        const res = await fetch(`./data.json?t=${Date.now()}`);
-        if (res.ok) {
-          const remoteData = await res.json();
-          priceHistory = { ...priceHistory, ...remoteData };
-          localStorage.setItem("portfolio_price_history", JSON.stringify(priceHistory));
-          renderCalendar();
-        }
-      } catch (e) {
-        console.log("尚未產生 data.json 或讀取失敗，使用本機儲存資料");
-      }
-    }
-
-    function formatNumber(num) {
-      if (Math.abs(num) >= 10000) {
-        return (num / 10000).toFixed(1) + "萬";
-      }
-      return Math.round(num).toLocaleString();
-    }
-
-    function calculateMarketValue(prices) {
-      if (!prices || prices["00685L"] === undefined || prices["0050"] === undefined) return null;
-      return (PORTFOLIO["00685L"].shares * prices["00685L"]) + (PORTFOLIO["0050"].shares * prices["0050"]);
-    }
-
-    function getDailyStats(dateStr) {
-      const todayPrice = priceHistory[dateStr];
-      if (!todayPrice || todayPrice["00685L"] === undefined || todayPrice["0050"] === undefined) {
-        return { pnl: 0, ret: 0, hasData: false };
-      }
-
-      const allDates = Object.keys(priceHistory).sort();
-      const idx = allDates.indexOf(dateStr);
-      const currVal = calculateMarketValue(todayPrice);
-
-      if (idx <= 0) {
-        const pnl = currVal - TOTAL_COST;
-        const ret = (pnl / TOTAL_COST) * 100;
-        return { pnl, ret, hasData: true };
-      }
-
-      const prevPrice = priceHistory[allDates[idx - 1]];
-      const prevVal = calculateMarketValue(prevPrice);
-      const pnl = currVal - prevVal;
-      const ret = prevVal ? (pnl / prevVal) * 100 : 0;
-      return { pnl, ret, hasData: true };
-    }
-
-    function renderCalendar() {
-      document.getElementById("currentMonthLabel").textContent = `${activeYear}/${String(activeMonth).padStart(2, '0')} 報酬`;
-      const grid = document.getElementById("calendarGrid");
-      grid.innerHTML = "";
-
-      const daysInMonth = new Date(activeYear, activeMonth, 0).getDate();
-      let currentWeekDays = [];
-      let weekCounter = 1;
-
-      for (let day = 1; day <= daysInMonth; day++) {
-        const dateObj = new Date(activeYear, activeMonth - 1, day);
-        const dayOfWeek = dateObj.getDay();
-        if (dayOfWeek === 0 || dayOfWeek === 6) continue;
-
-        const dateStr = `${activeYear}-${String(activeMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-        currentWeekDays.push({ day, dayOfWeek, dateStr });
-
-        if (dayOfWeek === 5 || day === daysInMonth) {
-          renderWeekRow(grid, currentWeekDays, weekCounter++);
-          currentWeekDays = [];
-        }
-      }
-
-      const monthPrefix = `${activeYear}-${String(activeMonth).padStart(2, '0')}`;
-      const monthDates = Object.keys(priceHistory).filter(d => d.startsWith(monthPrefix)).sort();
-
-      let monthTotalPnl = 0;
-      monthDates.forEach(d => {
-        const stats = getDailyStats(d);
-        if (stats.hasData) monthTotalPnl += stats.pnl;
-      });
-
-      const pnlEl = document.getElementById("monthlyPnlVal");
-      const retEl = document.getElementById("monthlyReturnVal");
-      pnlEl.textContent = (monthTotalPnl > 0 ? "+" : "") + Math.round(monthTotalPnl).toLocaleString();
-      pnlEl.className = `text-2xl md:text-3xl font-extrabold mt-1 tracking-tight ${monthTotalPnl > 0 ? 'gain-text' : monthTotalPnl < 0 ? 'loss-text' : 'neutral-text'}`;
-
-      const totalRet = (monthTotalPnl / TOTAL_COST) * 100;
-      retEl.textContent = (totalRet > 0 ? "+" : "") + totalRet.toFixed(2) + "%";
-      retEl.className = `text-2xl md:text-3xl font-extrabold mt-1 tracking-tight ${totalRet > 0 ? 'gain-text' : totalRet < 0 ? 'loss-text' : 'neutral-text'}`;
-    }
-
-    function renderWeekRow(grid, days, weekIdx) {
-      let weekTotalPnl = 0;
-      let hasWeekData = false;
-
-      for (let w = 1; w <= 5; w++) {
-        const item = days.find(d => d.dayOfWeek === w);
-        if (!item) {
-          const emptyCell = document.createElement("div");
-          emptyCell.className = "cell-empty min-h-[75px] md:min-h-[85px] rounded-lg p-2";
-          grid.appendChild(emptyCell);
-          continue;
-        }
-
-        const stats = getDailyStats(item.dateStr);
-        if (stats.hasData) {
-          weekTotalPnl += stats.pnl;
-          hasWeekData = true;
-        }
-
-        const cell = document.createElement("div");
-        const isUp = stats.pnl > 0;
-        const isDown = stats.pnl < 0;
-        const bgClass = !stats.hasData ? "cell-empty" : (isUp ? "cell-gain" : isDown ? "cell-loss" : "cell-empty");
-
-        cell.className = `${bgClass} min-h-[75px] md:min-h-[85px] rounded-lg p-2 cursor-pointer transition hover:opacity-80 flex flex-col justify-between`;
-        cell.onclick = () => openDayModal(item.dateStr);
-
-        cell.innerHTML = `
-          <div class="text-xs text-gray-400 font-bold">${item.day}</div>
-          <div class="text-center">
-            ${stats.hasData ? `
-              <div class="text-xs md:text-sm font-black ${isUp ? 'gain-text' : isDown ? 'loss-text' : 'neutral-text'}">
-                ${(stats.pnl > 0 ? "+" : "") + formatNumber(stats.pnl)}
-              </div>
-              <div class="text-[10px] md:text-xs font-semibold ${isUp ? 'gain-text' : isDown ? 'loss-text' : 'neutral-text'}">
-                ${(stats.ret > 0 ? "+" : "") + stats.ret.toFixed(2)}%
-              </div>
-            ` : `<div class="text-[10px] text-gray-600 mt-2">未記錄</div>`}
-          </div>
-          <div></div>
-        `;
-        grid.appendChild(cell);
-      }
-
-      const weekCell = document.createElement("div");
-      const isWeekUp = weekTotalPnl > 0;
-      const isWeekDown = weekTotalPnl < 0;
-      weekCell.className = "cell-week min-h-[75px] md:min-h-[85px] rounded-lg p-2 flex flex-col justify-between text-center";
-      weekCell.innerHTML = `
-        <div class="text-xs text-amber-500 font-bold self-end">${weekIdx}</div>
-        <div>
-          ${hasWeekData ? `
-            <div class="text-xs md:text-sm font-black ${isWeekUp ? 'gain-text' : isWeekDown ? 'loss-text' : 'neutral-text'}">
-              ${(weekTotalPnl > 0 ? "+" : "") + formatNumber(weekTotalPnl)}
-            </div>
-          ` : `<div class="text-[10px] text-gray-600">-</div>`}
-        </div>
-        <div class="text-[9px] text-gray-500">週總計</div>
-      `;
-      grid.appendChild(weekCell);
-    }
-
-    function openDayModal(dateStr) {
-      activeSelectedDate = dateStr;
-      document.getElementById("modalDateTitle").textContent = `${dateStr} 收盤價校正`;
-      const current = priceHistory[dateStr] || {};
-      document.getElementById("input00685L").value = current["00685L"] !== undefined ? current["00685L"] : "";
-      document.getElementById("input0050").value = current["0050"] !== undefined ? current["0050"] : "";
-      document.getElementById("dayModal").classList.remove("hidden");
-    }
-
-    function closeDayModal() {
-      document.getElementById("dayModal").classList.add("hidden");
-    }
-
-    function saveDayPrice() {
-      const p685 = parseFloat(document.getElementById("input00685L").value);
-      const p50 = parseFloat(document.getElementById("input0050").value);
-
-      if (!isNaN(p685) && !isNaN(p50)) {
-        priceHistory[activeSelectedDate] = { "00685L": p685, "0050": p50 };
-        localStorage.setItem("portfolio_price_history", JSON.stringify(priceHistory));
-        renderCalendar();
-      }
-      closeDayModal();
-    }
-
-    function clearDayPrice() {
-      if (priceHistory[activeSelectedDate]) {
-        delete priceHistory[activeSelectedDate];
-        localStorage.setItem("portfolio_price_history", JSON.stringify(priceHistory));
-        renderCalendar();
-      }
-      closeDayModal();
-    }
-
-    function changeMonth(delta) {
-      activeMonth += delta;
-      if (activeMonth < 1) { activeMonth = 12; activeYear--; }
-      if (activeMonth > 12) { activeMonth = 1; activeYear++; }
-      renderCalendar();
-    }
-
-    function openBackupModal() {
-      document.getElementById("jsonBackupArea").value = JSON.stringify(priceHistory, null, 2);
-      document.getElementById("backupModal").classList.remove("hidden");
-    }
-
-    function closeBackupModal() {
-      document.getElementById("backupModal").classList.add("hidden");
-    }
-
-    function importJsonData() {
-      try {
-        const parsed = JSON.parse(document.getElementById("jsonBackupArea").value);
-        if (typeof parsed === "object" && parsed !== null) {
-          priceHistory = parsed;
-          localStorage.setItem("portfolio_price_history", JSON.stringify(priceHistory));
-          renderCalendar();
-          closeBackupModal();
-          alert("匯入成功！");
-        }
-      } catch (e) {
-        alert("格式錯誤");
-      }
-    }
-
-    // 啟動時先載入本機與 data.json
-    renderCalendar();
-    syncDataJson();
-  </script>
-</body>
-</html>
+<script>
+// ===== 設定 =====
+const SH={a:11000,b:624000};          // a=0050股數, b=00685L股數
+const START="2026-09-01";             // 從此日起計算
+const HOL=new Set(["2026-09-25","2026-09-28","2026-10-09","2026-10-23","2026-10-26"]); // 休市日
+const DEFAULT={
+"2026-08-31":{a:106.25},
+"2026-09-01":{a:108.45},"2026-09-02":{a:106.80},"2026-09-03":{a:106.20,b:11.69},"2026-09-04":{a:107.90},
+"2026-09-07":{a:109.90},"2026-09-08":{a:109.65},"2026-09-09":{a:109.65},"2026-09-10":{a:109.15,b:12.26},"2026-09-11":{a:107.70},
+"2026-09-14":{a:106.90},"2026-09-15":{a:106.25,b:11.55},"2026-09-16":{a:106.90},"2026-09-17":{a:108.05,b:11.98},"2026-09-18":{a:109.85},
+"2026-09-23":{b:12.89},"2026-09-24":{b:12.87},"2026-09-29":{b:12.64},"2026-09-30":{b:12.91},
+"2026-10-01":{b:13.10},"2026-10-02":{b:13.12},"2026-10-05":{b:13.76},"2026-10-06":{b:13.87},
+"2026-10-07":{a:116.05,b:13.84},"2026-10-08":{a:114.95,b:13.53},"2026-10-12":{a:114.80,b:13.55},
+"2026-10-13":{a:112.40,b:13.02},"2026-10-14":{a:113.00,b:13.20},"2026-10-15":{a:108.90,b:12.26},"2026-10-16":{a:109.00,b:12.32},
+"2026-10-19":{a:108.15,b:12.07},"2026-10-20":{a:107.25,b:11.84},"2026-10-21":{a:108.15,b:12.13},"2026-10-22":{a:106.90,b:11.78},
+"2026-10-27":{a:106.60,b:11.75},"2026-10-28":{a:108.65,b:12.21},"2026-10-29":{a:107.25,b:11.86},"2026-10-30":{a:104.95,b:11.24},
+"2026-11-02":{a:104.10,b:11.17},"2026-11-03":{a:100.60,b:10.31},"2026-11-04":{a:99.85,b:10.14},"2026-11-05":{a:97.15,b:9.50},"2026-11-06":{a:92.50,b:8.56},
+"2026-11-09":{a:97.45,b:9.39},"2026-11-10":{a:99.70,b:9.85},"2026-11-11":{a:103.20,b:10.54}
+};
+// ===== 程式 =====
+let CL=JSON.parse(JSON.stringify(DEFAULT));
+try{const s=JSON.parse(localStorage.getItem("cl2")||"{}");for(const k in s)CL[k]=Object.assign(CL[k]||{},s[k])}catch(e){}
+const save=()=>{try{localStorage.setItem("cl2",JSON.stringify(CL))}catch(e){}};
+const iso=d=>d.toISOString().slice(0,10);
+const D=k=>new Date(k+"T00:00:00Z");
+const isTrade=k=>{const w=D(k).getUTCDay();return w>0&&w<6&&!HOL.has(k)};
+function prevTrade(k){let d=D(k);for(let i=0;i<10;i++){d.setUTCDate(d.getUTCDate()-1);const s=iso(d);if(isTrade(s))return s}}
+function day(k){
+ const c=CL[k],q=CL[prevTrade(k)];
+ if(!c||!q||c.a==null||c.b==null||q.a==null||q.b==null)return null;
+ return{pnl:SH.a*(c.a-q.a)+SH.b*(c.b-q.b),base:SH.a*q.a+SH.b*q.b};
+}
+const fmt=v=>{const a=Math.abs(v);return(v>0?"+":v<0?"-":"")+(a>=1e4?(a/1e4).toFixed(a>=1e6?0:1)+"萬":a.toFixed(0))};
+const pc=(p,b)=>(p>0?"+":"")+(p/b*100).toFixed(2)+"%";
+const cls=v=>v>0?"up":v<0?"dn":"";
+const $=id=>document.getElementById(id);
+let Y=2026,M=10,curK="";
+function render(){
+ $("t").textContent=`${Y}/${M+1} 報酬`;
+ const last=new Date(Date.UTC(Y,M+1,0)).getUTCDate();
+ let html=["一","二","三","四","五","週損益"].map(x=>`<div class="h">${x}</div>`).join("");
+ let tot=0,b0=null,w={p:0,b:null},wk=0,cnt=0;
+ const flush=()=>{html+=`<div class="c" style="cursor:default"><span>${++wk}</span>${w.b?`<b class="${cls(w.p)}">${fmt(w.p)}</b><span class="${cls(w.p)}">${pc(w.p,w.b)}</span>`:""}</div>`;w={p:0,b:null}};
+ let lead=(new Date(Date.UTC(Y,M,1)).getUTCDay()+6)%7;if(lead>4)lead=0;
+ for(let i=0;i<lead;i++){html+=`<div class="c x"></div>`;cnt++}
+ for(let d=1;d<=last;d++){
+  const k=iso(new Date(Date.UTC(Y,M,d))),w0=D(k).getUTCDay();if(w0==0||w0==6)continue;
+  let inner="",c="c";
+  if(!isTrade(k)){c+=" x";inner=`<span>${d}</span><b>休</b>`}
+  else if(k<START){c+=" x";inner=`<span>${d}</span>`}
+  else{
+   const r=day(k);
+   if(r){tot+=r.pnl;if(!b0)b0=r.base;if(!w.b)w.b=r.base;w.p+=r.pnl;
+    c+=r.pnl>0?" u":r.pnl<0?" d":"";
+    inner=`<span>${d}</span><b>${fmt(r.pnl)}</b><span>${pc(r.pnl,r.base)}</span>`}
+   else{c+=" m";inner=`<span>${d}</span><b style="color:var(--mut);font-weight:400">待填</b>`}
+  }
+  html+=`<div class="${c}" data-k="${k}">${inner}</div>`;
+  if(++cnt%5==0)flush();
+ }
+ if(cnt%5){while(cnt%5){html+=`<div class="c x"></div>`;cnt++}flush()}
+ $("g").innerHTML=html;
+ $("mp").textContent=b0?(tot>0?"+":"")+Math.round(tot).toLocaleString():"—";
+ $("mr").textContent=b0?pc(tot,b0):"";
+ $("mp").className=$("mr").className=cls(tot);
+ // 自 START 累計
+ let all=0,miss=0,n=0,d=D(START);const end=D("2026-12-31");
+ for(;d<=end;d.setUTCDate(d.getUTCDate()+1)){const k=iso(d);if(!isTrade(k))continue;
+  if(!CL[k]&&k>"2026-11-12")continue;
+  const r=day(k);if(r){all+=r.pnl;n++}else if(CL[k]||k<="2026-11-12")miss++}
+ $("sum").textContent=`自 ${START.slice(5).replace("-","/")} 累計 ${fmt(all)}（已計 ${n} 天，缺價 ${miss} 天）`;
+ document.querySelectorAll(".c[data-k]").forEach(el=>el.onclick=()=>edit(el.dataset.k));
+}
+function edit(k){
+ if(!isTrade(k))return;
+ curK=k;
+ const c=CL[k]||{};
+ $("dt").textContent=k;
+ $("ia").value=c.a??"";
+ $("ib").value=c.b??"";
+ $("dlg").showModal();
+ $("ia").focus();
+}
+$("cancel").onclick=()=>$("dlg").close();
+$("dlg").onclick=e=>{if(e.target===$("dlg"))$("dlg").close()};
+$("frm").onsubmit=()=>{
+ const c=Object.assign({},CL[curK]||{});
+ const a=$("ia").value.trim(),b=$("ib").value.trim();
+ if(a!==""&&!isNaN(+a))c.a=+a;
+ if(b!==""&&!isNaN(+b))c.b=+b;
+ CL[curK]=c;
+ save();render();
+};
+$("p").onclick=()=>{M--;if(M<0){M=11;Y--}render()};
+$("n").onclick=()=>{M++;if(M>11){M=0;Y++}render()};
+render();
+</script></body></html>
